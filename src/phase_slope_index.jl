@@ -1,5 +1,5 @@
 """
-    prep_data(data, seglen, verbose)
+    prep_data_psi(data, seglen, verbose)
 
 Checks and prepares data shape.
 
@@ -13,18 +13,18 @@ Checks and prepares data shape.
 
   - `data::AbstractArray`: NxM array for N data points in M channels.
 """
-function prep_data(data::AbstractArray, seglen::Integer, verbose::Bool)
-    # data dimension
-    if ndims(data) != 2
+function prep_data_psi(data::AbstractArray, seglen::Integer, verbose::Bool)
+
+    if ndims(data) != 2  # data dimension
         data = squeeze(data)
         ndims(data) != 2 && throw(DimensionMismatch("Data must be a 2D-array!"))
         verbose && @info "Data is squeezed to a 2D-array)"
     end
-    if size(data, 1) < size(data, 2)
+    if size(data, 1) < size(data, 2)  # should be NxM array for N data points in M channels
         verbose && @info "Data is transposed to (#samples, #channels)"
         data = reshape(data, size(data, 2), size(data, 1))
     end
-    if size(data, 1) < seglen
+    if size(data, 1) < seglen  # seglen must be smaller than number of samples
         throw(DimensionMismatch("seglen must be smaller than number of samples!"))
     end
     return data
@@ -290,7 +290,7 @@ function psi_est(
     )
 
     # check and reshape data if necessary and possible
-    data = prep_data(data, seglen, verbose)
+    data = prep_data_psi(data, seglen, verbose)
     nsamples, nchan = size(data)  # number of samples per channel and number of channels
 
     # method shall always be lowercase
