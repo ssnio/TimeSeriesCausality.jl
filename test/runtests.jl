@@ -1,6 +1,53 @@
 using TimeSeriesCausality
 using Test
 using Statistics: mean
+using Distributions: MvNormal
+
+
+@time @testset "granger_estimation.jl" begin
+    time_steps = 1000000
+    segment_length = 1000
+    noise_cov = MvNormal([0.25 0.0; 0.0 0.64])  # uncorrelated cov matrix of noise
+    noise = rand(noise_cov, time_steps)'
+    
+    # initial values
+    signal = zeros(time_steps, 2)
+    signal[1:3, :] = rand(3, 2) + noise[1:3, :]
+    
+    # simulation
+    designer = [0.4 -0.6  0.8  0.0  0.0  0.0;
+                0.5  0.9  0.0  0.0  0.0  0.7]
+
+    # designer = [0.0  0.6  0.0  0.4  0.0  0.8;
+    #             0.0  0.0  0.0  0.5 -0.9  0.7]
+    
+    for t in 4:time_steps
+        signal[t, :] = designer * reshape(signal[t-3:t-1, :], :, 1) + noise[t, :]
+    end
+    
+    covariances = TimeSeriesCausality.est_covs(signal, 3)
+    
+    ar_factors, p_error = TimeSeriesCausality.mvar_est(covariances)
+    begin
+        @test all(isapprox.(ar_factors[:, 1], designer[:, 3], atol=0.01))
+        @test all(isapprox.(ar_factors[:, 2], designer[:, 6], atol=0.01))
+        @test all(isapprox.(ar_factors[:, 3], designer[:, 2], atol=0.01))
+        @test all(isapprox.(ar_factors[:, 4], designer[:, 5], atol=0.01))
+        @test all(isapprox.(ar_factors[:, 5], designer[:, 1], atol=0.01))
+        @test all(isapprox.(ar_factors[:, 6], designer[:, 4], atol=0.01))
+    end
+    
+    grager_idx = granger_est(signal, 3, segment_length, "none")
+    @test grager_idx > 0.5
+    
+    # grager_idx, confidence = granger_est(signal, 3, segment_length, "jackknife")
+    
+    best_aic = argmin(granger_aic(signal, 1:7, segment_length))
+    @test best_aic == 3
+    
+    best_bic = argmin(granger_bic(signal, 1:7, segment_length))
+    @test best_bic == 3
+end
 
 
 @time @testset "phase_slope_index.jl" begin
