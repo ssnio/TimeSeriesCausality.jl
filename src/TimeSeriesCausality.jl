@@ -3,10 +3,8 @@ module TimeSeriesCausality
 # Imports
 using Einsum
 using FFTW: fft
-using Statistics: mean, std
-using Statistics: cov as covariance
-using LinearAlgebra: det
-using LinearAlgebra: I as identity
+using Statistics: mean, std, cov as covariance
+using LinearAlgebra: det, I as identity
 
 # Includes
 include("utils.jl")
