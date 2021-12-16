@@ -17,7 +17,7 @@ end
 makedocs(;
     sitename="TimeSeriesCausality.jl",
     format=Documenter.HTML(),
-    modules=[PhaseSlopeIndex],
+    modules=[TimeSeriesCausality],
     pages=["Home" => "index.md", "Examples" => "generated/examples.md"],
 )
 
