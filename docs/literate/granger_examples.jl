@@ -14,7 +14,7 @@
 
 using TimeSeriesCausality
 using Distributions: MvNormal
-using Plots: plot
+using Plots: plot, plot!
 
 # ### Data
 # We will generate (simulate) 1e6 two-channel samples using a design (evolution) matrix A of order 3. where:
@@ -42,7 +42,18 @@ for t in 4:time_steps
     signal[t, :] = designer * reshape(signal[t-3:t-1, :], :, 1) + noise[t, :]
 end
 
-# Akaike information criterion
 order_range = 1:7
-best_aic = granger_aic(signal, order_range, segment_length)
-plot(best_aic)
+
+# Akaike information criterion
+aic = granger_aic(signal, order_range, segment_length)
+
+# Bayesian information criterion
+bic = granger_bic(signal, order_range, segment_length)
+
+plt = plot(order_range, [aic, bic],
+           title = "Akaike vs Bayesian information critera",
+           label = ["Akaike IC" "Bayesian IC"],
+           xlabel = "Order",
+           ylabel = "IC",
+           lw = 2)
+# plot!(plt, order_range, )

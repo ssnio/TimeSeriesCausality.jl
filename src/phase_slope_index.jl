@@ -148,7 +148,7 @@ function cs2ps(cs::AbstractArray)
 end
 
 """
-    data2ps(data)
+    data2cs(data)
 
 Segmented data to Cross Spectra based on Eq. 2 [Nolte et al. 2008]:
 
