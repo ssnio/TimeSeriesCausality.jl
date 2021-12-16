@@ -34,29 +34,60 @@ function prep_data_granger(data::AbstractArray, seglen::Integer, verbose::Bool)
 end
 
 """
+	granger_est(data, order, seglen, method, verbose)
 
-internal variables:
+Granger's method of causal relation approximation
+
+### Arguments
+
+  - `data::AbstractArray`: Nx2 array for N data points in 2 channels.
+  - `order::Int`: Model order. Assumed time delay order of interest.
+  - `seglen::Integer`: segment length.
+
+*optional arguments*
+
+  - `method::String`: standard deviation estimation method (default is `"jackknife"`)
+  - `verbose::Bool`: if `true`, warnings and info logs would be echoed.
+
+### Returns
+
+  - `Grind::Float64`: Granger causality index
+  - `Grind_std::Float64`: estimated standard deviation of error
+
+### Internal variables:
+
   - Covs: Concatenated covariance mats of different orders
-  - Acoef: A matrix coefficients
+  - Acoef: Design (A) matrix coefficients
   - Perr: Prediction Error
-  - Grind: Granger index
+  - Σ: Measures the accuracy of the autoregressive prediction
+
+### References:
+  - C. W. J. Granger (1969). Investigating causal relations by econometric models
+    and cross-spectral methods, Econometrica, 37, 424-438.
+  - M. Ding et al. (2006). Granger Causality: Basic Theory and Application to Neuroscience
+    available online: https://arxiv.org/abs/q-bio/0608035
+
 """
-function granger_est(data::Array{Float64, 2}, order::Int, seglen::Int, misc="jackknife", verbose::Bool=true)
+function granger_est(data::Array{Float64, 2},
+				     order::Int,
+					 seglen::Int,
+					 method::String="jackknife",
+					 verbose::Bool=true)
 
 	data = prep_data_granger(data, seglen, verbose)
 	
-	Covs12 = est_covs(data, order)
-	Covs1 = est_covs(review(data, 1), order)
-	Covs2 = est_covs(review(data, 2), order)
+	Covs12 = est_sig_covs(data, order)
+	Covs1 = est_sig_covs(review(data, 1), order)
+	Covs2 = est_sig_covs(review(data, 2), order)
 	
 	Acoef12, Perr12 = mvar_est(Covs12)
 	Acoef1, _ = mvar_est(Covs1)
 	Acoef2, _ = mvar_est(Covs2)
 	
 	Σ12 = Perr12[:, end-1:end]
-	Σ12, _ = ΣEstimate(data, Acoef12, seglen)
-	Σ1, _ = ΣEstimate(review(data, 1), Acoef1, seglen)
-	Γ1, _ = ΣEstimate(review(data, 2), Acoef2, seglen)
+	Σ12 = est_noise_covs(data, Acoef12, seglen)
+	Σ1 = est_noise_covs(review(data, 1), Acoef1, seglen)
+	Γ1 = est_noise_covs(review(data, 2), Acoef2, seglen)
 	Σ2 = Σ12[1, 1]
 	Γ2 = Σ12[2, 2]
 	
@@ -65,7 +96,7 @@ function granger_est(data::Array{Float64, 2}, order::Int, seglen::Int, misc="jac
 	
 	Grind = (X_to_Y - Y_to_X)[1]
 
-	if lowercase(misc) == "jackknife"
+	if lowercase(method) == "jackknife"
 		Grind_std = granger_jackknife(data, order, seglen, Covs12, Covs1, Covs2)
 		return Grind, Grind_std
 	else
@@ -75,17 +106,26 @@ function granger_est(data::Array{Float64, 2}, order::Int, seglen::Int, misc="jac
 end
 
 """
-	est_cov(X, order)
+	est_sig_covs(data, order)
 
-Estimates covariances of orders up to the given order
+Concatenated covariances of signal to the given order
+
+### Arguments
+
+  - `data::AbstractArray`: Nx2 array for N data points in 2 channels.
+  - `order::Int`: Model order (default is nsamples/2 )
+
+### Returnss
+
+  - `Covs::Array{Float64, 2}`: Concatenated covariances of 0 to the given order
 
 """
-function est_covs(data::AbstractArray{Float64, 2}, order::Int=NaN)
+function est_sig_covs(data::AbstractArray{Float64, 2}, order::Int=NaN)::Array{Float64, 2}
 
 	nsamples, nchan = size(data) # number of rows (samples) and columns (channels)
 	
 	if isnan(order)
-		order = nsamples - 1
+		order = int(nsamples / 2)
 	end
 	
 	Covs = Array{Float64}(undef, nchan, nchan*(order+1))
@@ -98,116 +138,171 @@ function est_covs(data::AbstractArray{Float64, 2}, order::Int=NaN)
 end
 
 """
+	mvar_est(Covs)
 
-multivariate autoregressive model parameter estimation
-Levinson-Wiggens-Robinson (LWR) algorithm using unbiased correlation function
+MultiVariate AutoRegressive (MVAR) model parameter estimation using
+"Levinson-Wiggens-Robinson (LWR) algorithm using unbiased correlation function"
+
+### Arguments
+
+  - `Covs::Array{Float64, 2}`: Concatenated covariances of 0 to the given order
+
+### Returnss
+
+  - `ARF::Array{Float64, 2}`: Design (A) matrix coefficients
+  - `PE::Array{Float64}` : model Prediction Error
+
+### References:
+  - Alois Schlögl et al. <a.schloegl@ieee.org>, part of TSA-toolbox and FieldTrip-toolbox:
+    https://github.com/fieldtrip/fieldtrip/blob/master/external/biosig/mvar.m
+
 """
 function mvar_est(Covs::Array{Float64, 2})
 
-	nC, nR = size(Covs)  # number of rows and columns
-	order = int(nR / nC) - 1
+	n_i, m_j = size(Covs)  # number of rows and columns
+	order = int(m_j / n_i) - 1
 
-	ARF = Array{Float64}(undef, nC, order*nC)
-	ARB = Array{Float64}(undef, nC, order*nC)
-	RCF = Array{Float64}(undef, nC, order*nC)
-	RCB = Array{Float64}(undef, nC, order*nC)
-	PE = Array{Float64}(undef, nC, (order+1)*nC)
+	ARF = Array{Float64}(undef, n_i, n_i*order)
+	ARB = Array{Float64}(undef, n_i, n_i*order)
+	RCF = Array{Float64}(undef, n_i, n_i*order)
+	RCB = Array{Float64}(undef, n_i, n_i*order)
+	PE = Array{Float64}(undef, n_i, n_i*(order+1))
 	
-    PE[:, 1:nC] = Covs[:, 1:nC]
-	PEF = Covs[:, 1:nC]  # it's a different normalization in BioSig
-	PEB = Covs[:, 1:nC]  # it's a different normalization in BioSig
+    PE[:, 1:n_i] = Covs[:, 1:n_i]
+	PEF = Covs[:, 1:n_i]  # it's a different normalization in BioSig
+	PEB = Covs[:, 1:n_i]  # it's a different normalization in BioSig
 	
 	for k in 1:order
-		S1 = k*nC .+ (1:nC)  # slice
-		S2 = k*nC .+ (1-nC:0)  # slice
+		S1 = k*n_i .+ (1:n_i)  # slice
+		S2 = k*n_i .+ (1-n_i:0)  # slice
 		
 		D = Covs[:, S1]
 		for L in 1:k-1
-			S3 = L*nC .+ (1-nC:0)  # slice
-			D -= ARF[:, S3] * Covs[:, (k-L)*nC .+ (1:nC)]
+			S3 = L*n_i .+ (1-n_i:0)  # slice
+			D -= ARF[:, S3] * Covs[:, (k-L)*n_i .+ (1:n_i)]
 		end
 		
 		ARF[:, S2] = D / PEB
         ARB[:, S2] = D' / PEF
 		for L in 1:k-1
-			S3 = L*nC .+ (1-nC:0)  # slice
-			S4 = (k-L)*nC .+ (1-nC:0)  # slice
+			S3 = L*n_i .+ (1-n_i:0)  # slice
+			S4 = (k-L)*n_i .+ (1-n_i:0)  # slice
 			ARB[:, S4], ARF[:, S3] = (ARB[:, S4] - ARB[:, S2] * ARF[:, S3],
 									  ARF[:, S3] - ARF[:, S2] * ARB[:, S4])
 		end
 		
 		RCF[:, S2] = ARF[:, S2]
         RCB[:, S2] = ARB[:, S2]
-        PEF = (identity(nC) - ARF[:, S2] * ARB[:, S2]) * PEF
-        PEB = (identity(nC) - ARB[:, S2] * ARF[:, S2]) * PEB
+        PEF = (identity(n_i) - ARF[:, S2] * ARB[:, S2]) * PEF
+        PEB = (identity(n_i) - ARB[:, S2] * ARF[:, S2]) * PEB
         PE[:, S1] = PEF
 	end
 	
 	return ARF, PE
 end
 
-function ΣEstimate(X::AbstractArray{Float64, 2}, A::AbstractArray{Float64, 2}, eplen::Int)
-	nR, nC = size(X)  # number of rows and columns
-	nA = size(A, 2)
-	P = int(nA / nC)
-	nep = int(nR / eplen)
-	Ax = reshape(A, nC, nC, :)
-    C = zeros(nC, nC)
-    S = zeros(nC, nC)
+"""
+	est_noise_covs(data, A, seglen)
 
-	@inbounds for e in 1:nep
-		S1 = (e-1)*eplen+1:e*eplen
-		S2 = P+1:eplen
-		@views Xx = X[S1, :][S2, :]'
-		S += Xx * Xx'
-		for i in 1:P
-			@views Xx -= Ax[:, :, i] * X[S1, :][S2 .- i, :]'
+Estimation of covariance of noise
+
+### Arguments
+
+  - `data::AbstractArray`: NxM array for N data points in M channels.
+  - `A::Array{Float64, 2}`: Design (A) matrix coefficients
+  - `seglen::Integer`: segment length.
+
+### Returnss
+  
+  - `C::Array{Float64}` : covariance matrix of noise
+
+"""
+function est_noise_covs(data::AbstractArray{Float64, 2},
+						A::AbstractArray{Float64, 2},
+						seglen::Int)
+
+	nsamples, nchan = size(data)  # number of rows and columns
+	order = int(size(A, 2) / nchan)  # number of columns = order * number of channels
+	nsegments = int(nsamples / seglen)  # number of segments
+	
+	A = reshape(A, nchan, nchan, :)
+    C = zeros(nchan, nchan)
+
+	@inbounds for e in 1:nsegments
+		S1 = (e-1)*seglen+1:e*seglen
+		S2 = order+1:seglen
+		@views X = data[S1, :][S2, :]'
+		for i in 1:order
+			@views X -= A[:, :, i] * data[S1, :][S2 .- i, :]'
 		end
-		C += Xx * Xx'
+		C += X * X'
 	end
 
-    S /= nep * (eplen-P)
-    C /= nep * (eplen-P)
+    C /= nsegments * (seglen - order)
 	
-	return C , S
+	return C
 end
 
-function granger_jackknife(data, order, seglen, R12, R1, R2)
+"""
+	granger_jackknife(data, order, seglen, Covs12, Covs1, Covs2)
+
+Jackknife sampling method for estimating the error standard deviation
+
+### Arguments
+
+  - `data::AbstractArray`: Nx2 array for N data points in 2 channels.
+  - `order::Int`: Model order. Assumed time delay order of interest.
+  - `seglen::Integer`: segment length.
+  - `Covs12::Array{Float64, 2}`: Concatenated COvariances of 0 to the given order
+  - `Covs1::Array{Float64, 2}`: Channel 1 Concatenated variances of 0 to the given order
+  - `Covs2::Array{Float64, 2}`: Channel 2 Concatenated variances of 0 to the given order
+
+### Returns
+
+  - `::Float64`: estimated standard deviation of error
+"""
+function granger_jackknife(data::Array{Float64, 2},
+						  order::Int,
+						  seglen::Int,
+						  Covs12::AbstractArray{Float64, 2},
+						  Covs1::AbstractArray{Float64, 2},
+						  Covs2::AbstractArray{Float64, 2})
+
 	nsamples = size(data, 1)  # number of samples
-	nSeg = int(nsamples / seglen)  # number of segments
-	g_Seg = zeros(nSeg, 1)  
+	nsegments = int(nsamples / seglen)  # number of segments
+	trials = zeros(nsegments, 1)  
 	
-	Threads.@threads for i in 1:nSeg
+	Threads.@threads for i in 1:nsegments
 		Segment = view(data, (i-1)*seglen+1:i*seglen, :)
 		
-		R12_ = est_covs(Segment, order)
-		R1_ = est_covs(review(Segment, 1), order)
-		R2_ = est_covs(review(Segment, 2), order)
+		Covs12_ = est_sig_covs(Segment, order)
+		Covs1_ = est_sig_covs(review(Segment, 1), order)
+		Covs2_ = est_sig_covs(review(Segment, 2), order)
 		
-		R12_s = (nSeg * R12 - R12_) / (nSeg - 1)
-		R1_s = (nSeg * R1 - R1_) / (nSeg - 1)
-		R2_s = (nSeg * R2 - R2_) / (nSeg - 1)
+		Covs12_s = (nsegments * Covs12 - Covs12_) / (nsegments - 1)
+		Covs1_s = (nsegments * Covs1 - Covs1_) / (nsegments - 1)
+		Covs2_s = (nsegments * Covs2 - Covs2_) / (nsegments - 1)
 		
-		Acoef12_s, PE12_s = mvar_est(R12_s)
-		Acoef1_s, PE1_s = mvar_est(R1_s)
-		Acoef2_s, PE2_s = mvar_est(R2_s)
+		Acoef12_s, _ = mvar_est(Covs12_s)
+		Acoef1_s, _ = mvar_est(Covs1_s)
+		Acoef2_s, _ = mvar_est(Covs2_s)
 
 		SegmentC = vcat(view(data, 1:(i-1)*seglen, :),
 			view(data, (i+1)*seglen .+ 1:nsamples, :))
 
-		Σ12_s, _ = ΣEstimate(SegmentC, Acoef12_s, seglen)
-		Σ1_s, _ = ΣEstimate(review(SegmentC, 1), Acoef1_s, seglen)
-		Γ1_s, _ = ΣEstimate(review(SegmentC, 2), Acoef2_s, seglen)
+		Σ12_s = est_noise_covs(SegmentC, Acoef12_s, seglen)
+		Σ1_s = est_noise_covs(review(SegmentC, 1), Acoef1_s, seglen)
+		Γ1_s = est_noise_covs(review(SegmentC, 2), Acoef2_s, seglen)
 		Σ2_s = Σ12_s[1, 1]
 		Γ2_s = Σ12_s[2, 2]
 		
-		Fx2y_s = log(Γ1_s / Γ2_s)
-		Fy2x_s = log(Σ1_s / Σ2_s)
+		X_to_Y_s = log(Γ1_s / Γ2_s)
+		Y_to_X_s = log(Σ1_s / Σ2_s)
 		
-		g_Seg[i, :] = Fx2y_s - Fy2x_s
+		trials[i, :] = X_to_Y_s - Y_to_X_s
 		
 	end
-	return sqrt(nSeg) * std(g_Seg)
+	return sqrt(nsegments) * std(trials)
 end
 
 """
@@ -215,15 +310,17 @@ end
 
 	Akaike Information Criterion
 """
-function granger_aic(data::Array{Float64, 2}, order_range, seglen::Int)
+function granger_aic(data::Array{Float64, 2},
+					 order_range::UnitRange{Int64},
+					 seglen::Int)
 	
 	nchan = size(data, 2)
 	aic_range = Array{Float64}(undef, size(order_range))
 	
 	for (i, order) in enumerate(order_range)
-		Covs = est_covs(data, order)
+		Covs = est_sig_covs(data, order)
 		Acoef, _ = mvar_est(Covs)
-		Σ, _ = ΣEstimate(data, Acoef, seglen)
+		Σ = est_noise_covs(data, Acoef, seglen)
 		aic_range[i] = 2 * log(det(Σ)) + (2 * order * nchan^2 / seglen)
 	end
 	return aic_range
@@ -234,15 +331,17 @@ end
 
 Bayesian Information Criterion
 """
-function granger_bic(data::Array{Float64, 2}, order_range, seglen::Int)
+function granger_bic(data::Array{Float64, 2},
+				     order_range::UnitRange{Int64},
+					 seglen::Int)
 	
 	nchan = size(data, 2)
 	bic_range = Array{Float64}(undef, size(order_range))
 	
 	for (i, order) in enumerate(order_range)
-		Covs = est_covs(data, order)
+		Covs = est_sig_covs(data, order)
 		Acoef, _ = mvar_est(Covs)
-		Σ, _ = ΣEstimate(data, Acoef, seglen)
+		Σ = est_noise_covs(data, Acoef, seglen)
 		bic_range[i] = 2 * log(det(Σ)) + (2 * order * nchan^2 * log(seglen) / seglen)
 	end
 	return bic_range
