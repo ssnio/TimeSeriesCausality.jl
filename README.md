@@ -1,8 +1,6 @@
 # TimeSeriesCausality.jl
 Time Series Methods of Causality
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ssnio.github.io/TimeSeriesCausality.jl/stable)
-[![Master](https://img.shields.io/badge/docs-master-blue.svg)](https://ssnio.github.io/TimeSeriesCausality.jl/dev)
 [![Build Status](https://github.com/ssnio/TimeSeriesCausality.jl/workflows/CI/badge.svg)](https://ssnio.github.io/TimeSeriesCausality.jl/actions)
 [![codecov](https://codecov.io/gh/ssnio/TimeSeriesCausality.jl/branch/main/graph/badge.svg?token=LLiAXJ5xZN)](https://codecov.io/gh/ssnio/TimeSeriesCausality.jl)
 
