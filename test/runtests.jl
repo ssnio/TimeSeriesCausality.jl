@@ -25,7 +25,7 @@ using Distributions: MvNormal
         signal[t, :] = designer * reshape(signal[t-3:t-1, :], :, 1) + noise[t, :]
     end
     
-    covariances = TimeSeriesCausality.est_covs(signal, 3)
+    covariances = TimeSeriesCausality.est_sig_covs(signal, 3)
     
     ar_factors, p_error = TimeSeriesCausality.mvar_est(covariances)
     begin
@@ -39,13 +39,11 @@ using Distributions: MvNormal
     
     grager_idx = granger_est(signal, 3, segment_length, "none")
     @test grager_idx > 0.5
-    
-    # grager_idx, confidence = granger_est(signal, 3, segment_length, "jackknife")
-    
-    best_aic = argmin(granger_aic(signal, 1:7, segment_length))
+
+    order_range = 1:7
+    best_aic = argmin(granger_aic(signal, order_range, segment_length))
     @test best_aic == 3
-    
-    best_bic = argmin(granger_bic(signal, 1:7, segment_length))
+    best_bic = argmin(granger_bic(signal, order_range, segment_length))
     @test best_bic == 3
 end
 
