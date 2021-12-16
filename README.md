@@ -14,10 +14,10 @@ Application to Neuroscience](https://doi.org/10.1002/9783527609970.ch17) for mor
 For detailed examples, refer to the [docs](https://ssnio.github.io/TimeSeriesCausality.jl/dev/generated/examples/) or the following notebook on the platform of your choice:
 
 #### PSI Examples
-[![github](https://img.shields.io/badge/render-GitHub%20notebook-blue)](https://github.com/ssnio/PhaseSlopeIndex.jl/blob/gh-pages/dev/generated/psi_examples.ipynb)
+[![github](https://img.shields.io/badge/render-GitHub%20notebook-blue)](https://github.com/ssnio/TimeSeriesCausality.jl/blob/gh-pages/dev/generated/psi_examples.ipynb)
 
 #### Granger Examples
-[![github](https://img.shields.io/badge/render-GitHub%20notebook-blue)](https://github.com/ssnio/PhaseSlopeIndex.jl/blob/gh-pages/dev/generated/granger_examples.ipynb)
+[![github](https://img.shields.io/badge/render-GitHub%20notebook-blue)](https://github.com/ssnio/TimeSeriesCausality.jl/blob/gh-pages/dev/generated/granger_examples.ipynb)
 
 ### Acknowledgement
 This work was funded by the German Federal Ministry of Education and Research ([BMBF](https://www.bmbf.de/)) in the project ALICE III under grant ref. 01IS18049B.
