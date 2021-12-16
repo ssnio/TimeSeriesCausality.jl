@@ -1,6 +1,7 @@
 # TimeSeriesCausality.jl
 Time Series Methods of Causality
 
+[![Documentation](https://github.com/ssnio/TimeSeriesCausality.jl/actions/workflows/docwork.yml/badge.svg)](https://github.com/ssnio/TimeSeriesCausality.jl/actions/workflows/docwork.yml)
 [![Build Status](https://github.com/ssnio/TimeSeriesCausality.jl/workflows/CI/badge.svg)](https://ssnio.github.io/TimeSeriesCausality.jl/actions)
 [![codecov](https://codecov.io/gh/ssnio/TimeSeriesCausality.jl/branch/main/graph/badge.svg?token=LLiAXJ5xZN)](https://codecov.io/gh/ssnio/TimeSeriesCausality.jl)
 
