@@ -1,5 +1,5 @@
 using Documenter, Literate
-using TimeSeriesCausality
+using PhaseSlopeIndex
 
 EXAMPLE_DIR = joinpath(@__DIR__, "literate")
 OUT_DIR = joinpath(@__DIR__, "src/generated")
@@ -15,12 +15,12 @@ end
 
 ## Build docs
 makedocs(;
-    sitename="TimeSeriesCausality.jl",
+    sitename="PhaseSlopeIndex.jl",
     format=Documenter.HTML(),
-    modules=[TimeSeriesCausality],
+    modules=[PhaseSlopeIndex],
     pages=["Home" => "index.md", "Examples" => "generated/examples.md"],
 )
 
 deploydocs(;
-    repo="github.com/ssnio/TimeSeriesCausality.jl.git", devbranch="main", branch="gh-pages"
+    repo="github.com/ssnio/PhaseSlopeIndex.jl.git", devbranch="master", branch="gh-pages"
 )

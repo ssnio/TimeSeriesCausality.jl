@@ -1,67 +1,183 @@
-"""
-    prep_data_psi(data, seglen, verbose)
 
-Checks and prepares data shape.
+module PhaseSlopeIndex
+
+using Statistics: mean, std
+using FFTW: fft
+using Einsum
+
+# Exports
+#---
+export data2psi
+
+"""
+    int(x) = trunc(Int, x)
+"""
+int(x) = trunc(Int, x)
+
+"""
+    dropmean(X, d) = dropdims(mean(X, dims=d), dims=d)
+"""
+function dropmean(X, d)
+    if ndims(X) == 1
+        mean(X; dims=d)
+    else
+        dropdims(mean(X; dims=d); dims=d)
+    end
+end
+
+"""
+    squeeze(X::AbstractArray)
+
+removing singleton dimensions
+"""
+function squeeze(X::AbstractArray)
+    keepd = Tuple(d for d in size(X) if d != 1)
+    return reshape(X, keepd)
+end
+
+"""
+    detrend!(data, n)
+
+(in place) Linear detrend of signals along first axis removing the n-th order polynomial.
+This detrend function is limited to linear orders (0th and 1st order).
+
+### Arguments
+
+  - `data::AbstractArray`: N-dim array where signal is in column-major order
+  - `n::Integer`: `n = 0` subtracts mean from data, `n = 1` removes linear trend
+
+**Note**: shape of data must be (signal length, ...)
+"""
+function detrend!(data::AbstractArray, n::Integer)
+    original_shape = size(data)
+    nsamp = size(data, 1)  # number of samples
+
+    A = Array{Float64}([ones(nsamp) Array(1:nsamp)])
+
+    data = reshape(data, (nsamp, :))  # reshaping data
+    if n == 0
+        data .-= mean(data; dims=1)
+    elseif n == 1
+        data .-= A * (A \ data)
+    end
+    return reshape(data, original_shape)
+end
+
+"""
+    window = hanning_fun(N)
+
+Hanning window similar to MATLAB `hanning` implementation
+"""
+function hanning_fun(N::Integer)
+    x = [range(0.0, 1.0; length=N + 2);]
+    window = 0.5 .* (1 .- cospi.(2 .* x))
+    window = (window + window[end:-1:1]) ./ 2  # forcing symmetry
+    return window[2:(end - 1)]  # excluding the zero values
+end
+
+"""
+    data2para(data, seglen, segshift, eplen, freqlist, method)
+
+Extracts and builds a named tuple of parameters.
 
 ### Arguments
 
   - `data::AbstractArray`: NxM array for N data points in M channels.
   - `seglen::Integer`: segment length (determines the frequency resolution).
+  - `segshift::Integer`: number of bins by which neighboring segments are shifted
+    (e.g. `segshift = seglen / 2` makes overlapping segments).
+  - `eplen::Integer`: length of epochs
+  - `freqlist::AbstractArray`: a UnitRange or 2D-Array where each column is a frequency band
+  - `method::String`: standard deviation estimation method
+  - `subave::Bool`: if `true`, subtract average from CS segments
+    (for continuous data, `subave = false`).
   - `verbose::Bool`: if `true`, warnings and info logs would be echoed.
 
 ### Returns
 
-  - `data::AbstractArray`: NxM array for N data points in M channels.
+  - `parameters::NamedTuple`: a named tuple of parameters
 """
-function prep_data_psi(data::AbstractArray, seglen::Integer, verbose::Bool)
-
-    if ndims(data) != 2  # data dimension
+function data2para(
+    data::AbstractArray,
+    seglen::Integer,
+    segshift::Integer,
+    eplen::Integer,
+    freqlist::AbstractArray{Int},
+    method::String,
+    subave::Bool,
+    verbose::Bool
+    )
+    # data dimension
+    if ndims(data) != 2
         data = squeeze(data)
         ndims(data) != 2 && throw(DimensionMismatch("Data must be a 2D-array!"))
         verbose && @info "Data is squeezed to a 2D-array)"
     end
-    if size(data, 1) < size(data, 2)  # should be NxM array for N data points in M channels
+    if size(data, 1) < size(data, 2)
         verbose && @info "Data is transposed to (#samples, #channels)"
         data = reshape(data, size(data, 2), size(data, 1))
     end
-    if size(data, 1) < seglen  # seglen must be smaller than number of samples
+    if size(data, 1) < seglen
         throw(DimensionMismatch("seglen must be smaller than number of samples!"))
     end
-    return data
-end
 
-"""
-    prep_freq(freqlist, seglen, verbose)
+    # number of samples per channel and number of channels
+    nsamples, nchannels = size(data)
 
-Checks and prep frequency list and bands
+    # method shall always be lowercase
+    method = lowercase(method)
+    if eplen == 0
+        verbose && @warn "Epoch length = 0 => No estimation of standard deviation."
+        method = "none"
+    end
 
-### Arguments
+    # if eplen = nsamples: continuous recording
+    eplen == 0 && (eplen = nsamples)
+    nep = int(nsamples / eplen)  # number of epochs
 
-  - `freqlist::AbstractArray`: a UnitRange or 2D-Array where each column is a frequency band
-  - `seglen::Integer`: segment length (determines the frequency resolution).
-  - `verbose::Bool`: if `true`, warnings and info logs would be echoed.
+    if nep == 1 && subave == true
+        subave = false
+        verbose && @warn "subave is set to false for continuous data (nep = 1)"
+    end
 
-"""
-function prep_freq(freqlist::AbstractArray{Int}, seglen::Integer, verbose::Bool)
-        # size(freqlist) = (freqs, nfbands)
-        if length(freqlist) == 0
-            freqlist = reshape(1:((int(seglen / 2)) - 1), :, 1)
-        elseif ndims(freqlist) == 1
-            freqlist = reshape(freqlist, :, 1)
-        elseif ndims(freqlist) > 2
-            throw("freqlist must be a UnitRange or a 2D-Array!")
-        elseif size(freqlist, 1) < size(freqlist, 2)
-            freqlist = freqlist'
-            verbose && @info "freqlist is transposed to (#freq, #nfbands)"
-        end
-        if maximum(freqlist) >= int(seglen / 2)
-            throw("Maximum frequency for freqlist is larger than the Nyquist frequency!")
-        elseif minimum(freqlist) < 1
-            throw("Minimum frequency for freqlist is 0 or negative!")
-        end
-        maxfreq = maximum(freqlist)  # max frequency of all frequency bands
-        nfbands = size(freqlist, 2)  # number of frequency bands
-        return freqlist, maxfreq, nfbands
+    segshift == 0 && (segshift = int(seglen / 2))
+    nseg = int((eplen - seglen) / segshift) + 1
+
+    # size(freqlist) = (freqs, nfbands)
+    if length(freqlist) == 0
+        freqlist = reshape(1:((int(seglen / 2)) - 1), :, 1)
+    elseif ndims(freqlist) == 1
+        freqlist = reshape(freqlist, :, 1)
+    elseif ndims(freqlist) > 2
+        throw("freqlist must be a UnitRange or a 2D-Array!")
+    elseif size(freqlist, 1) < size(freqlist, 2)
+        freqlist = freqlist'
+        verbose && @info "freqlist is transposed to (#freq, #nfbands)"
+    end
+    if maximum(freqlist) >= int(seglen / 2)
+        throw("Maximum frequency for freqlist is larger than the Nyquist frequency!")
+    elseif minimum(freqlist) < 1
+        throw("Minimum frequency for freqlist is 0 or negative!")
+    end
+    maxfreq = maximum(freqlist)  # max frequency of all frequency bands
+    nfbands = size(freqlist, 2)  # number of frequency bands
+
+    parameters = (
+        data=data,
+        nsamples=nsamples,
+        nchan=nchannels,
+        eplen=eplen,
+        nep=nep,
+        method=method,
+        subave=subave,
+        segshift=segshift,
+        nseg=nseg,
+        freqlist=freqlist,
+        maxfreq=maxfreq,
+        nfbands=nfbands,
+    )
+
+    return parameters
 end
 
 """
@@ -148,7 +264,7 @@ function cs2ps(cs::AbstractArray)
 end
 
 """
-    data2cs(data)
+    data2ps(data)
 
 Segmented data to Cross Spectra based on Eq. 2 [Nolte et al. 2008]:
 
@@ -242,8 +358,8 @@ function cs2cs_(
 end
 
 """
-    psi_est(data, seglen ; segshift, eplen, freqlist, method,
-            nboot, segave, subave, detrend)
+    data2psi(data, seglen ; segshift, eplen, freqlist, method,
+                            nboot, segave, subave, detrend)
 
 calculates phase slope index (PSI)
 
@@ -274,7 +390,7 @@ calculates phase slope index (PSI)
   - `psi::AbstractArray`: Phase Slope Index with shape `(channel, channel, frequency bands)`
   - `psi_std::AbstractArray`: PSI estimated standard deviation with shape `(channel, channel, frequency bands)`
 """
-function psi_est(
+function data2psi(
     data::AbstractArray,
     seglen::Integer;
     segshift::Integer=0,
@@ -289,56 +405,27 @@ function psi_est(
     verbose::Bool=false
     )
 
-    # check and reshape data if necessary and possible
-    data = prep_data_psi(data, seglen, verbose)
-    nsamples, nchan = size(data)  # number of samples per channel and number of channels
+    (data, nsamples, nchan, eplen, nep, method, subave, segshift, nseg, freqlist, maxfreq, nfbands) = data2para(
+        data, seglen, segshift, eplen, freqlist, method, subave, verbose
+    )
 
-    # method shall always be lowercase
-    method = lowercase(method)
-    if eplen == 0
-        verbose && @warn "Epoch length = 0 => No estimation of standard deviation."
-        method = "none"
-    end
-
-    # if eplen = nsamples: continuous recording
-    eplen == 0 && (eplen = nsamples)
-    nep = int(nsamples / eplen)  # number of epochs
-
-    if nep == 1 && subave == true
-        subave = false
-        verbose && @warn "subave is set to false for continuous data (nep = 1)"
-    end
-
-    # segment shift 
-    segshift == 0 && (segshift = int(seglen / 2))
-    nseg = int((eplen - seglen) / segshift) + 1
-
-    # frequency list and bands
-    freqlist, maxfreq, nfbands = prep_freq(freqlist, seglen, verbose)
-
-    # rolling window segment data
     eposeg = make_eposeg(data, seglen, eplen, nep, nseg, nchan, segshift)
 
-    # detrending data if required
     if detrend
         detrend!(eposeg, 0)
     end
 
-    # applying window function (Hanning window is default)
     eposeg .*= window(seglen)
 
-    # Fast Fourier Transforming the data
     eposeg = view(fft(eposeg, 1), 2:(maxfreq + 1), :, :, :)
 
-    # preallocation of Phase-Slope-index arrays
+    # preallocation
     psi = Array{Float64}(undef, nchan, nchan, nfbands)
     if method == "jackknife"
         psi_est = Array{Float64}(undef, nchan, nchan, nfbands, nep)
     elseif method == "bootstrap"
         psi_est = Array{Float64}(undef, nchan, nchan, nfbands, nboot)
     end
-
-    # calculating Cross-Spectra and PSI
     for (f, fband) in enumerate(eachrow(freqlist'))
         cs_full = data2cs(view(eposeg, fband, :, :, :))
 
@@ -359,7 +446,6 @@ function psi_est(
         end
     end
 
-    # calculating the standard error
     if method == "jackknife"
         psi_std = sqrt(nep) * squeeze(std(psi_est; corrected=true, dims=4))
     elseif method == "bootstrap"
@@ -373,3 +459,5 @@ function psi_est(
 
     return psi, psi_std
 end
+
+end  # module
