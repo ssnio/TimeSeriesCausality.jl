@@ -3,22 +3,21 @@ using Plots: plot, heatmap, cgrad
 using DSP: blackman
 
 # data generation
-T = Float64
 n_channels = 4  # number of channels
 n_samples = 2^16  # number of data points measured in each channel
 fs = 128  # sampling frequency
-time_array = Array{T}(range(1; step=1 / fs, length=n_samples))
+time_array = Array{Float64}(range(1; step=1 / fs, length=n_samples))
 
 # mixed data
 range_c4 = 1:n_samples
 range_c1 = range_c4 .+ 16
 range_c3 = range_c1 .- 1
 
-rand_data = randn(T, (n_samples + 16, 1)) # uniform noise
+rand_data = randn(Float64, (n_samples + 16, 1)) # uniform noise
 cause_source = rand_data[range_c1]  # channel 1
-random_source = randn(T, n_samples)  # channel 2, uniform noise
+random_source = randn(Float64, n_samples)  # channel 2, uniform noise
 effect_source = rand_data[range_c3]  # channel 3
-weak_effect = rand_data[range_c4] .- (randn(T, (n_samples, 1)) / 5) # channel 4
+weak_effect = rand_data[range_c4] .- (randn(Float64, (n_samples, 1)) / 5) # channel 4
 mixed_data = hcat(cause_source, random_source, effect_source, weak_effect)
 
 p1 = plot(
@@ -31,11 +30,11 @@ p1 = plot(
 
 plot(p1; layout=(1, 1), size=(800, 450))
 
-seglen = 100  # segment length
+segment_length = 100  # segment length
 nboot = 256  # number of bootstrap iterations
 method = "bootstrap"  # standard deviation estimation method
 
-psi, psi_std = psi_est(mixed_data, seglen; nboot=nboot, method=method)
+psi, psi_std = psi_est(mixed_data, segment_length; nboot=nboot, method=method)
 
 p1 = heatmap(
     psi;
@@ -59,7 +58,7 @@ p2 = heatmap(
 
 plot(p1, p2; layout=(1, 2), size=(720, 300))
 
-seglen = 100  # segment length
+segment_length = 100  # segment length
 eplen = 200  # epoch length
 method = "jackknife"  # standard deviation estimation method
 
@@ -73,7 +72,7 @@ window = blackman  # blackman window function
 
 psi, psi_std = psi_est(
     mixed_data,
-    seglen;
+    segment_length;
     subave=subave,
     segave=segave,
     detrend=detrend,
