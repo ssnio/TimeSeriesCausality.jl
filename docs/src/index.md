@@ -3,7 +3,7 @@ This is a Julia implementation of the [*Phase Slope Index*]((https://link.aps.or
 
 ## Outline
 ```@contents
-Pages = ["index.md", "generated/psi_examples.md", "generated/granger_examples.md"]
+Pages = ["index.md", "generated/psi_examples.md", "generated/granger_examples.md", "generated/benchmark.md"]
 ```
 
 ## Functions
