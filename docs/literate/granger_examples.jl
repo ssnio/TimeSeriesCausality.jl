@@ -12,6 +12,7 @@
 using TimeSeriesCausality
 using Distributions: MvNormal
 using Plots: plot
+using Printf
 
 # ### Data
 # We will generate (simulate) 1e6 two-channel samples using a design (evolution) matrix A of order 3. where:
