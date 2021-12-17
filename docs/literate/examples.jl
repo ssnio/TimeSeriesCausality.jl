@@ -1,18 +1,18 @@
-# # Phase Slope Index method: Examples
+# # Phase Slope Index:
 #
 # ### Purpose
 # This is a walk-through notebook on *Robustly Estimating the Flow Direction of Information in Complex Physical Systems* paper, by *Guido Nolte, Andreas Ziehe, Vadim V. Nikulin, Alois Schlögl, Nicole Krämer, Tom Brismar, and Klaus-Robert Müller*, implemented in Julia-Language (please see http://doc.ml.tu-berlin.de/causality/ and [Nolte et al. 2008](http://link.aps.org/abstract/PRL/v100/e234101)).
 #
 #md # The notebook can be viewed here:
-#md # * [![binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/examples.ipynb)
-#md # * [![nbviewer](https://img.shields.io/badge/render-nbviewer-orange.svg)](@__NBVIEWER_ROOT_URL__/generated/examples.ipynb)
+#md # * [![binder](https://mybinder.org/badge_logo.svg)](@__BINDER_ROOT_URL__/generated/psi_examples.ipynb)
+#md # * [![nbviewer](https://img.shields.io/badge/render-nbviewer-orange.svg)](@__NBVIEWER_ROOT_URL__/generated/psi_examples.ipynb)
 #
 #nb # ### Acknowledgement
 #nb # This work was funded by the German Federal Ministry of Education and Research ([BMBF](https://www.bmbf.de/)) in the project ALICE III under grant ref. 01IS18049B.
 #
 # ### Load packages
 
-using PhaseSlopeIndex
+using TimeSeriesCausality
 using Plots: plot, heatmap, cgrad
 using DSP: blackman
 
@@ -52,7 +52,7 @@ p1 = plot(
 plot(p1; layout=(1, 1), size=(800, 450))
 
 #nb # ### PSI
-#nb @doc data2psi
+#nb @doc psi_est
 
 # ## Example 1
 # PSI is calculated over all frequencies for segmented (`seglen = 100`) but continuous data (single epoch, `nep = 1`) and estimation of error using Bootstrap method for 256 resampling iterations (`nboot=256`). The default window function ([Hanning window](https://en.wikipedia.org/wiki/Hann_function)) is used.
@@ -61,7 +61,7 @@ seglen = 100  # segment length
 nboot = 256  # number of bootstrap iterations
 method = "bootstrap"  # standard deviation estimation method
 
-psi, psi_std = data2psi(mixed_data, seglen; nboot=nboot, method=method)
+psi, psi_std = psi_est(mixed_data, seglen; nboot=nboot, method=method)
 
 p1 = heatmap(
     psi;
@@ -102,7 +102,7 @@ subave = true  # subtract average across CS segments
 detrend = true  # performs a 0th-order detrend across raw segments
 window = blackman  # blackman window function
 
-psi, psi_std = data2psi(
+psi, psi_std = psi_est(
     mixed_data,
     seglen;
     subave=subave,

@@ -1,6 +1,0 @@
-/Manifest.toml
-/build
-/site
-
-# This folder can be generated when accidentally running make.jl locally
-/src/generated
