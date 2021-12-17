@@ -17,8 +17,6 @@
 using TimeSeriesCausality
 using Distributions: MvNormal
 using Plots: plot, bar
-using Printf
-using FFTW
 
 # ### Unidirectional flux with white noise
 # - channel 1 is the causal (independent) time series
