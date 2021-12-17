@@ -37,8 +37,8 @@ using Distributions: MvNormal
         @test all(isapprox.(ar_factors[:, 6], designer[:, 4], atol=0.01))
     end
     
-    grager_idx, std_error = granger_est(signal, 3, segment_length, "jackknife")
-    @test grager_idx ≈ 0.59 atol=0.02
+    granger_idx, std_error = granger_est(signal, 3, segment_length, "jackknife")
+    @test granger_idx ≈ 0.59 atol=0.02
     @test std_error ≈ 0.0035 atol=0.002
 
     order_range = 1:7

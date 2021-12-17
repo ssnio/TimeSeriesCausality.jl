@@ -51,11 +51,11 @@ plot(1:segment_length, [signal[1:segment_length, 1], signal[1:segment_length, 2]
 # Granger method can estimate the causal index for a 2-channel signal. The larger the value, the stronger the causal dependence. A positive value indicates the flow of information from channel 1 to 2, and vice versa.
 # We have also included JackKnife method for calculate the standard deviation of error for the estimation.
 
-grager_idx, err_std = granger_est(signal, 3, segment_length, "jackknife")
-@printf "Granger causality index is %.3f with std error of %.3f" grager_idx err_std
+granger_idx, err_std = granger_est(signal, 3, segment_length, "jackknife")
+@printf "Granger causality index is %.3f with std error of %.3f" granger_idx err_std
 
 # ### Order as a hyperparameter
-# Since the order (time step delay) in which the signals interact is unknown by us, we have implemented Akaike and Bayesian information critera to estimate the most informative order.
+# Since the order (time step delay) in which the signals interact is unknown by us, we have implemented Akaike and Bayesian information criteria to estimate the most informative order.
 
 ## the range of orders to look into
 order_range = 1:7
@@ -67,7 +67,7 @@ aic = granger_aic(signal, order_range, segment_length)
 bic = granger_bic(signal, order_range, segment_length)
 
 plot(order_range, [aic, bic],
-     title = "Akaike vs Bayesian information critera",
+     title = "Akaike vs Bayesian information criteria",
      label = ["Akaike IC" "Bayesian IC"],
      xlabel = "Order",
      ylabel = "IC",

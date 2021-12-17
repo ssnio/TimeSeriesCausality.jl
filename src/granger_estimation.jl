@@ -115,7 +115,7 @@ Concatenated covariances of signal to the given order
   - `data::AbstractArray`: Nx2 array for N data points in 2 channels.
   - `order::Int`: Model order (default is nsamples/2 )
 
-### Returnss
+### Returns
 
   - `Covs::Array{Float64, 2}`: Concatenated covariances of 0 to the given order
 
@@ -147,7 +147,7 @@ MultiVariate AutoRegressive (MVAR) model parameter estimation using
 
   - `Covs::Array{Float64, 2}`: Concatenated covariances of 0 to the given order
 
-### Returnss
+### Returns
 
   - `ARF::Array{Float64, 2}`: Design (A) matrix coefficients
   - `PE::Array{Float64}` : model Prediction Error
@@ -212,7 +212,7 @@ Estimation of covariance of noise
   - `A::Array{Float64, 2}`: Design (A) matrix coefficients
   - `seglen::Integer`: segment length.
 
-### Returnss
+### Returns
   
   - `C::Array{Float64}` : covariance matrix of noise
 

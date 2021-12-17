@@ -121,8 +121,8 @@ where:
 C_{ij}(f) = \\frac{S_{ij}(f)}{\\sqrt{S_{ii}(f)~S_{jj}(f)}}
 ```
 
-is the complext coherency, and \$S\$ is the cross spectral matrix
-(returnd by `data2cs` function), \$\\delta f\$ is the frequency resolution,
+is the complex coherency, and \$S\$ is the cross spectral matrix
+(returned by `data2cs` function), \$\\delta f\$ is the frequency resolution,
 and \$\\mathfrak{I}\$ denotes taking the imaginary part.
 
 ### Arguments
