@@ -51,7 +51,7 @@ plot(1:segment_length, [signal[1:segment_length, 1], signal[1:segment_length, 2]
 # We have also included JackKnife method for calculate the standard deviation of error for the estimation.
 
 grager_idx, err_std = granger_est(signal, 3, segment_length, "jackknife")
-@printf "Granger causality index is %.3f with std error of %.3f", grager_idx, err_std
+@printf "Granger causality index is %.3f with std error of %.3f" grager_idx err_std
 
 # ### Order as a hyperparameter
 # Since the order (time step delay) in which the signals interact is unknown by us, we have implemented Akaike and Bayesian information critera to estimate the most informative order.
