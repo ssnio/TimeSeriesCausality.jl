@@ -5,8 +5,8 @@ using Distributions: MvNormal
 
 
 @time @testset "granger_estimation.jl" begin
-    time_steps = 1000000
-    segment_length = 1000
+    time_steps = 256*1024
+    segment_length = 1024
     noise_cov = MvNormal([0.25 0.0; 0.0 0.64])  # uncorrelated cov matrix of noise
     noise = rand(noise_cov, time_steps)'
     
@@ -37,8 +37,9 @@ using Distributions: MvNormal
         @test all(isapprox.(ar_factors[:, 6], designer[:, 4], atol=0.01))
     end
     
-    grager_idx = granger_est(signal, 3, segment_length, "none")
-    @test grager_idx > 0.5
+    grager_idx, std_error = granger_est(signal, 3, segment_length, "jackknife")
+    @test grager_idx ≈ 0.59 atol=0.02
+    @test std_error ≈ 0.0035 atol=0.002
 
     order_range = 1:7
     best_aic = argmin(granger_aic(signal, order_range, segment_length))
@@ -47,7 +48,98 @@ using Distributions: MvNormal
     @test best_bic == 3
 end
 
+@time @testset "utils.jl" begin
 
+    # tests of int ####################################################
+    @test TimeSeriesCausality.int(3.14) == 3
+    @test TimeSeriesCausality.int(-2.72) == -2
+    @test TimeSeriesCausality.int(0.0) == 0
+
+    # tests of dropmean ###############################################
+    test_a = rand(13)
+    @test TimeSeriesCausality.dropmean(test_a, 1) == mean(test_a; dims=1)
+    test_a = rand(3, 5)
+    @test TimeSeriesCausality.dropmean(test_a, 1) == mean(test_a; dims=1)[1, :]
+    test_a = rand(7, 11)
+    @test TimeSeriesCausality.dropmean(test_a, 2) == mean(test_a; dims=2)[:, 1]
+
+    # tests of squeeze ################################################
+    test_a = rand(17)
+    @test TimeSeriesCausality.squeeze(test_a) == test_a
+    test_a = rand(3, 5, 7)
+    @test TimeSeriesCausality.squeeze(test_a) == test_a
+    test_a = rand(3, 1, 7)
+    @test TimeSeriesCausality.squeeze(test_a) == test_a[:, 1, :]
+
+    # tests of detrend ################################################
+    # testing the inplace
+    test_x = [0:0.01:2.0;]
+    zeros_x = zeros(size(test_x))
+    @test all(isapprox.(TimeSeriesCausality.detrend!(test_x, 1), zeros_x, atol=0.001))
+    @test all(isapprox.(test_x, zeros_x, atol=0.001))
+
+    test_x = [0:0.01:2.0;]
+    @test all(isapprox.(TimeSeriesCausality.detrend!(test_x, 0), [-1.0:0.01:1.0;], atol=0.001))
+    test_x = [0:0.01:2.0;]
+    @test all(isapprox.(TimeSeriesCausality.detrend!(test_x, 1), zeros_x, atol=0.001))
+
+    test_x = [0:0.01:(2pi);]
+    test_y = sin.(test_x)
+    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 0), test_y, atol=0.001))
+    test_x = [0:0.01:(2pi);]
+    test_y = sin.(test_x)
+    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 1), test_y, atol=0.001))
+
+    test_x = [0:0.01:(2pi);]
+    test_y = cos.(test_x) .+ test_x
+    aux_x = [0:0.01:(2pi);] .- pi
+    aux_y = cos.(test_x) .+ aux_x
+    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 0), aux_y, atol=0.001))
+    test_x = [0:0.01:(2pi);]
+    test_y = cos.(test_x) .+ test_x
+    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 1), cos.(test_x), atol=0.01))
+
+    # tests of hanning_fun ############################################
+    # the arrays are from MATLAB `hanning` function.
+    hann_12 = [
+        0.057271987173395
+        0.215967626634422
+        0.439731659872338
+        0.677302443521268
+        0.874255374085551
+        0.985470908713026
+        0.985470908713026
+        0.874255374085551
+        0.677302443521268
+        0.439731659872338
+        0.215967626634422
+        0.057271987173395
+    ]
+    hann_13 = [
+        0.049515566048790
+        0.188255099070633
+        0.388739533021843
+        0.611260466978157
+        0.811744900929367
+        0.950484433951210
+        1.000000000000000
+        0.950484433951210
+        0.811744900929367
+        0.611260466978157
+        0.388739533021843
+        0.188255099070633
+        0.049515566048790
+    ]
+    hanning_window_12 = TimeSeriesCausality.hanning_fun(12)
+    hanning_window_13 = TimeSeriesCausality.hanning_fun(13)
+    @test all(hanning_window_12 .≈ hann_12)
+    @test all(hanning_window_13 .≈ hann_13)
+    @test hanning_window_12[1] == hanning_window_12[end]
+    @test hanning_window_13[1] == hanning_window_13[end]
+    @test hanning_window_12[1] > 0.0
+    @test hanning_window_13[1] > 0.0
+
+end
 @time @testset "phase_slope_index.jl" begin
     # tests of psi_est ###############################################
     # two random signals
@@ -143,7 +235,6 @@ end
     @test psi_freq[1, 2] > psi_low[1, 2]  # PSI higher in target frequency range
     @test psi_freq[1, 2] > psi_high[1, 2]  # PSI higher in target frequency range
 
-    # test data2para ##################################################
     # ndims(data) should be 2
     signal = rand(100, 3, 2)
     @test_throws DimensionMismatch psi_est(signal, 100)
@@ -166,92 +257,4 @@ end
     psi, _ = psi_est(signal, 100; subave=true)
     @test !all(isnan.(psi))
 
-    # tests of int ####################################################
-    @test TimeSeriesCausality.int(3.14) == 3
-    @test TimeSeriesCausality.int(-2.72) == -2
-    @test TimeSeriesCausality.int(0.0) == 0
-
-    # tests of dropmean ###############################################
-    test_a = rand(13)
-    @test TimeSeriesCausality.dropmean(test_a, 1) == mean(test_a; dims=1)
-    test_a = rand(3, 5)
-    @test TimeSeriesCausality.dropmean(test_a, 1) == mean(test_a; dims=1)[1, :]
-    test_a = rand(7, 11)
-    @test TimeSeriesCausality.dropmean(test_a, 2) == mean(test_a; dims=2)[:, 1]
-
-    # tests of squeeze ################################################
-    test_a = rand(17)
-    @test TimeSeriesCausality.squeeze(test_a) == test_a
-    test_a = rand(3, 5, 7)
-    @test TimeSeriesCausality.squeeze(test_a) == test_a
-    test_a = rand(3, 1, 7)
-    @test TimeSeriesCausality.squeeze(test_a) == test_a[:, 1, :]
-
-    # tests of detrend ################################################
-    # testing the inplace
-    test_x = [0:0.01:2.0;]
-    zeros_x = zeros(size(test_x))
-    @test all(isapprox.(TimeSeriesCausality.detrend!(test_x, 1), zeros_x, atol=0.001))
-    @test all(isapprox.(test_x, zeros_x, atol=0.001))
-
-    test_x = [0:0.01:2.0;]
-    @test all(isapprox.(TimeSeriesCausality.detrend!(test_x, 0), [-1.0:0.01:1.0;], atol=0.001))
-    test_x = [0:0.01:2.0;]
-    @test all(isapprox.(TimeSeriesCausality.detrend!(test_x, 1), zeros_x, atol=0.001))
-
-    test_x = [0:0.01:(2pi);]
-    test_y = sin.(test_x)
-    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 0), test_y, atol=0.001))
-    test_x = [0:0.01:(2pi);]
-    test_y = sin.(test_x)
-    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 1), test_y, atol=0.001))
-
-    test_x = [0:0.01:(2pi);]
-    test_y = cos.(test_x) .+ test_x
-    aux_x = [0:0.01:(2pi);] .- pi
-    aux_y = cos.(test_x) .+ aux_x
-    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 0), aux_y, atol=0.001))
-    test_x = [0:0.01:(2pi);]
-    test_y = cos.(test_x) .+ test_x
-    @test all(isapprox.(TimeSeriesCausality.detrend!(test_y, 1), cos.(test_x), atol=0.01))
-
-    # tests of hanning_fun ############################################
-    # the arrays are from MATLAB `hanning` function.
-    hann_12 = [
-        0.057271987173395
-        0.215967626634422
-        0.439731659872338
-        0.677302443521268
-        0.874255374085551
-        0.985470908713026
-        0.985470908713026
-        0.874255374085551
-        0.677302443521268
-        0.439731659872338
-        0.215967626634422
-        0.057271987173395
-    ]
-    hann_13 = [
-        0.049515566048790
-        0.188255099070633
-        0.388739533021843
-        0.611260466978157
-        0.811744900929367
-        0.950484433951210
-        1.000000000000000
-        0.950484433951210
-        0.811744900929367
-        0.611260466978157
-        0.388739533021843
-        0.188255099070633
-        0.049515566048790
-    ]
-    hanning_window_12 = TimeSeriesCausality.hanning_fun(12)
-    hanning_window_13 = TimeSeriesCausality.hanning_fun(13)
-    @test all(hanning_window_12 .≈ hann_12)
-    @test all(hanning_window_13 .≈ hann_13)
-    @test hanning_window_12[1] == hanning_window_12[end]
-    @test hanning_window_13[1] == hanning_window_13[end]
-    @test hanning_window_12[1] > 0.0
-    @test hanning_window_13[1] > 0.0
 end
