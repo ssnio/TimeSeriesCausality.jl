@@ -1,8 +1,6 @@
 using TimeSeriesCausality
 using Distributions: MvNormal
 using Plots: plot, bar
-using Printf
-using FFTW
 
 order = 1
 n_samples = 1024  # number of data points per channel
