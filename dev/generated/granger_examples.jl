@@ -31,8 +31,8 @@ plot(1:segment_length, [signal[1:segment_length, 1], signal[1:segment_length, 2]
      ylabel = "",
      lw = 2)
 
-grager_idx, err_std = granger_est(signal, 3, segment_length, "jackknife")
-@printf "Granger causality index is %.3f with std error of %.3f" grager_idx err_std
+granger_idx, err_std = granger_est(signal, 3, segment_length, "jackknife")
+@printf "Granger causality index is %.3f with std error of %.3f" granger_idx err_std
 
 # the range of orders to look into
 order_range = 1:7
@@ -44,7 +44,7 @@ aic = granger_aic(signal, order_range, segment_length)
 bic = granger_bic(signal, order_range, segment_length)
 
 plot(order_range, [aic, bic],
-     title = "Akaike vs Bayesian information critera",
+     title = "Akaike vs Bayesian information criteria",
      label = ["Akaike IC" "Bayesian IC"],
      xlabel = "Order",
      ylabel = "IC",
