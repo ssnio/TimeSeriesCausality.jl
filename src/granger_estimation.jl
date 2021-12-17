@@ -34,19 +34,19 @@ function prep_data_granger(data::AbstractArray, seglen::Integer, verbose::Bool)
 end
 
 """
-	granger_est(data, order, seglen, method, verbose)
+	granger_est(data, seglen; order, method, verbose)
 
 Granger's method of causal relation approximation
 
 ### Arguments
 
   - `data::AbstractArray`: Nx2 array for N data points in 2 channels.
-  - `order::Int`: Model order. Assumed time delay order of interest.
   - `seglen::Integer`: segment length.
 
 *optional arguments*
 
   - `method::String`: standard deviation estimation method (default is `"jackknife"`)
+  - `order::Int`: Model order. Assumed time delay order of interest (default is `n_samples / 2`)
   - `verbose::Bool`: if `true`, warnings and info logs would be echoed.
 
 ### Returns
@@ -69,13 +69,17 @@ Granger's method of causal relation approximation
 
 """
 function granger_est(data::Array{Float64, 2},
-				     order::Int,
-					 seglen::Int,
-					 method::String="jackknife",
+					 seglen::Int;
+					 order::Int=0,
+					 method::String="none",
 					 verbose::Bool=true)
 
 	data = prep_data_granger(data, seglen, verbose)
 	
+	if order == 0
+		order = int(seglen / 2) - 1
+	end
+
 	Covs12 = est_sig_covs(data, order)
 	Covs1 = est_sig_covs(review(data, 1), order)
 	Covs2 = est_sig_covs(review(data, 2), order)
@@ -97,7 +101,7 @@ function granger_est(data::Array{Float64, 2},
 	Grind = (X_to_Y - Y_to_X)[1]
 
 	if lowercase(method) == "jackknife"
-		Grind_std = granger_jackknife(data, order, seglen, Covs12, Covs1, Covs2)
+		Grind_std = granger_jackknife(data, seglen, order, Covs12, Covs1, Covs2)
 		return Grind, Grind_std
 	else
 		return Grind
@@ -120,13 +124,9 @@ Concatenated covariances of signal to the given order
   - `Covs::Array{Float64, 2}`: Concatenated covariances of 0 to the given order
 
 """
-function est_sig_covs(data::AbstractArray{Float64, 2}, order::Int=NaN)::Array{Float64, 2}
+function est_sig_covs(data::AbstractArray{Float64, 2}, order::Int)::Array{Float64, 2}
 
 	nsamples, nchan = size(data) # number of rows (samples) and columns (channels)
-	
-	if isnan(order)
-		order = int(nsamples / 2)
-	end
 	
 	Covs = Array{Float64}(undef, nchan, nchan*(order+1))
 	
@@ -244,7 +244,7 @@ function est_noise_covs(data::AbstractArray{Float64, 2},
 end
 
 """
-	granger_jackknife(data, order, seglen, Covs12, Covs1, Covs2)
+	granger_jackknife(data, seglen, order, Covs12, Covs1, Covs2)
 
 Jackknife sampling method for estimating the error standard deviation
 
@@ -262,8 +262,8 @@ Jackknife sampling method for estimating the error standard deviation
   - `::Float64`: estimated standard deviation of error
 """
 function granger_jackknife(data::Array{Float64, 2},
-						  order::Int,
 						  seglen::Int,
+						  order::Int,
 						  Covs12::AbstractArray{Float64, 2},
 						  Covs1::AbstractArray{Float64, 2},
 						  Covs2::AbstractArray{Float64, 2})
@@ -306,13 +306,13 @@ function granger_jackknife(data::Array{Float64, 2},
 end
 
 """
-	granger_aic(data, order_range, seglen)
+	granger_aic(data, seglen, order_range)
 
 	Akaike Information Criterion
 """
 function granger_aic(data::Array{Float64, 2},
-					 order_range::UnitRange{Int64},
-					 seglen::Int)
+					 seglen::Int,
+					 order_range::UnitRange{Int64},)
 	
 	nchan = size(data, 2)
 	aic_range = Array{Float64}(undef, size(order_range))
@@ -327,13 +327,13 @@ function granger_aic(data::Array{Float64, 2},
 end
 
 """
-	granger_bic(data, order_range, seglen)
+	granger_bic(data, seglen, order_range)
 
 Bayesian Information Criterion
 """
 function granger_bic(data::Array{Float64, 2},
-				     order_range::UnitRange{Int64},
-					 seglen::Int)
+					 seglen::Int,
+				     order_range::UnitRange{Int64})
 	
 	nchan = size(data, 2)
 	bic_range = Array{Float64}(undef, size(order_range))
