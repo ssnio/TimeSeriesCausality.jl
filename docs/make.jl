@@ -18,9 +18,9 @@ makedocs(;
     sitename="TimeSeriesCausality.jl",
     format=Documenter.HTML(),
     modules=[TimeSeriesCausality],
-    pages=["Home" => "index.md", "PSI Examples" => "generated/psi_examples.md", "Granger Examples" => "generated/granger_examples.md"],
+    pages=["Home" => "index.md", "Examples" => "generated/examples.md"],
 )
 
 deploydocs(;
-    repo="github.com/ssnio/TimeSeriesCausality.jl.git", devbranch="master", branch="gh-pages"
+    repo="github.com/ssnio/TimeSeriesCausality.jl.git", devbranch="main", branch="gh-pages"
 )
