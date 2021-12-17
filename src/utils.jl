@@ -70,3 +70,27 @@ end
 Reshape + View
 """
 review(X, dim) = reshape(view(X, :, dim), :, 1)
+
+"""
+    pink_noise(n, c)
+
+Pink noise with `n` samples and pinkness of:
+```math
+P_s \\propto \\frac{1}{f^c} .
+```
+
+### Arguments
+
+  - `n::Integer`: Number of samples
+  - `c::Float64`: pinkness order (frequency power)
+
+"""
+function pink_noise(n::Integer, c::Float64)
+    nf = int(n / 2)  # Nyquist frequency
+    x = reshape(range(start=0.0, stop=1.0, length=n), 1, :)
+    f = reshape(range(start=1, stop=nf), :, 1)
+    phi = rand(nf)
+    y = f * x .+ phi
+    z = sin.(2 * pi * y) ./ (f .^ c)
+    return sum(z; dims=1)[1, :]
+end
