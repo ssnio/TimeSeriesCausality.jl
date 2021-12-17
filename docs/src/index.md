@@ -1,10 +1,10 @@
 # TimeSeriesCausality.jl
 This is a Julia implementation of the [*Phase Slope Index*]((https://link.aps.org/doi/10.1103/PhysRevLett.100.234101)) and [*Granger Causality*](https://doi.org/10.2307/1912791) methods. Please refer to [http://doc.ml.tu-berlin.de/causality](http://doc.ml.tu-berlin.de/causality/) for more information.
 
-## Outline
+<!-- ## Outline
 ```@contents
-Pages = ["index.md", "generated/examples.md"]
-```
+Pages = ["index.md", "generated/psi_examples.md", "generated/granger_examples.md"]
+``` -->
 
 ## Functions
 Phase Slope Index (PSI) estimation `psi_est`:
