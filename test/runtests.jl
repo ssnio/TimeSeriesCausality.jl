@@ -37,14 +37,14 @@ using Distributions: MvNormal
         @test all(isapprox.(ar_factors[:, 6], designer[:, 4], atol=0.01))
     end
     
-    granger_idx, std_error = granger_est(signal, 3, segment_length, "jackknife")
+    granger_idx, std_error = granger_est(signal, segment_length; order=3, method="jackknife")
     @test granger_idx ≈ 0.59 atol=0.02
     @test std_error ≈ 0.0035 atol=0.002
 
     order_range = 1:7
-    best_aic = argmin(granger_aic(signal, order_range, segment_length))
+    best_aic = argmin(granger_aic(signal, segment_length, order_range))
     @test best_aic == 3
-    best_bic = argmin(granger_bic(signal, order_range, segment_length))
+    best_bic = argmin(granger_bic(signal, segment_length, order_range))
     @test best_bic == 3
 end
 
@@ -236,15 +236,15 @@ end
     @test psi_freq[1, 2] > psi_high[1, 2]  # PSI higher in target frequency range
 
     # ndims(data) should be 2
-    signal = rand(100, 3, 2)
+    signal = randn(100, 3, 2)
     @test_throws DimensionMismatch psi_est(signal, 100)
 
     # squeeze
-    signal = rand(100, 1, 4)
+    signal = randn(100, 1, 4)
     @test psi_est(signal, 100)[1] == psi_est(signal[:, 1, :], 100)[1]
 
     # size(data, 1) >!> seglen
-    signal = rand(50, 3)
+    signal = randn(50, 3)
     @test_throws DimensionMismatch psi_est(signal, 100)
 
     # if eplen == 0 then no std estimation
