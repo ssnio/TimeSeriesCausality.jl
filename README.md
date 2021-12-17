@@ -23,5 +23,5 @@ For detailed examples, refer to the [docs](https://ssnio.github.io/TimeSeriesCau
 This work was funded by the German Federal Ministry of Education and Research ([BMBF](https://www.bmbf.de/)) in the project ALICE III under grant ref. 01IS18049B.
 
 ### Citation
-Please [cite the following paper](https://github.com/ssnio/TimeSeriesCausality.jl/blob/master/citation.bib) if you use this *Phase Slope Index* code in published work:
+Please [cite the following paper](https://github.com/ssnio/TimeSeriesCausality.jl/blob/main/citation.bib) if you use this *Phase Slope Index* code in published work:
 > Nolte, G., Ziehe, A., Nikulin, V., Schlögl, A., Krämer, N., Brismar, T., & Müller, K.R. (2008), *[Robustly Estimating the Flow Direction of Information in Complex Physical Systems](http://link.aps.org/abstract/PRL/v100/e234101)*, Phys. Rev. Lett., 100, 234101. 
