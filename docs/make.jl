@@ -18,7 +18,10 @@ makedocs(;
     sitename="TimeSeriesCausality.jl",
     format=Documenter.HTML(),
     modules=[TimeSeriesCausality],
-    pages=["Home" => "index.md", "PSI Examples" => "generated/psi_examples.md", "Granger Examples" => "generated/granger_examples.md"],
+    pages=["Home" => "index.md",
+           "PSI Examples" => "generated/psi_examples.md",
+           "Granger Examples" => "generated/granger_examples.md",
+           "Benchmark" => "generated/benchmark.md"],
 )
 
 deploydocs(;
