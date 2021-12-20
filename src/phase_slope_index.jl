@@ -43,25 +43,25 @@ Checks and prep frequency list and bands
 
 """
 function prep_freq(freqlist::AbstractArray{Int}, seglen::Integer, verbose::Bool)
-        # size(freqlist) = (freqs, nfbands)
-        if length(freqlist) == 0
-            freqlist = reshape(1:((int(seglen / 2)) - 1), :, 1)
-        elseif ndims(freqlist) == 1
-            freqlist = reshape(freqlist, :, 1)
-        elseif ndims(freqlist) > 2
-            throw("freqlist must be a UnitRange or a 2D-Array!")
-        elseif size(freqlist, 1) < size(freqlist, 2)
-            freqlist = freqlist'
-            verbose && @info "freqlist is transposed to (#freq, #nfbands)"
-        end
-        if maximum(freqlist) >= int(seglen / 2)
-            throw("Maximum frequency for freqlist is larger than the Nyquist frequency!")
-        elseif minimum(freqlist) < 1
-            throw("Minimum frequency for freqlist is 0 or negative!")
-        end
-        maxfreq = maximum(freqlist)  # max frequency of all frequency bands
-        nfbands = size(freqlist, 2)  # number of frequency bands
-        return freqlist, maxfreq, nfbands
+    # size(freqlist) = (freqs, nfbands)
+    if length(freqlist) == 0
+        freqlist = reshape(1:((int(seglen / 2))-1), :, 1)
+    elseif ndims(freqlist) == 1
+        freqlist = reshape(freqlist, :, 1)
+    elseif ndims(freqlist) > 2
+        throw("freqlist must be a UnitRange or a 2D-Array!")
+    elseif size(freqlist, 1) < size(freqlist, 2)
+        freqlist = freqlist'
+        verbose && @info "freqlist is transposed to (#freq, #nfbands)"
+    end
+    if maximum(freqlist) >= int(seglen / 2)
+        throw("Maximum frequency for freqlist is larger than the Nyquist frequency!")
+    elseif minimum(freqlist) < 1
+        throw("Minimum frequency for freqlist is 0 or negative!")
+    end
+    maxfreq = maximum(freqlist)  # max frequency of all frequency bands
+    nfbands = size(freqlist, 2)  # number of frequency bands
+    return freqlist, maxfreq, nfbands
 end
 
 """
@@ -92,14 +92,14 @@ function make_eposeg(
     nseg::Integer,
     nchan::Integer,
     segshift::Integer,
-    )::AbstractArray
+)::AbstractArray
 
     # preallocation
     epseg = Array{Float64}(undef, seglen, nep, nseg, nchan)
 
-    for (i, e) in zip(1:nep, 1:eplen:(nep * eplen))
-        for (j, s) in zip(1:nseg, 1:segshift:(nseg * seglen))
-            @views epseg[:, i, j, :] = data[e:(e + eplen - 1), :][s:(s + seglen - 1), :]
+    for (i, e) in zip(1:nep, 1:eplen:(nep*eplen))
+        for (j, s) in zip(1:nseg, 1:segshift:(nseg*seglen))
+            @views epseg[:, i, j, :] = data[e:(e+eplen-1), :][s:(s+seglen-1), :]
         end
     end
 
@@ -144,7 +144,7 @@ function cs2ps(cs::AbstractArray)
     @einsum coh[f, i, j] := cs[f, i, j] / sqrt(cs[f, i, i] * cs[f, j, j])
 
     # phase slope (Eq. 3)
-    @views imag.(sum(conj(coh[1:(end - 1), :, :]) .* coh[2:end, :, :]; dims=1))
+    @views imag.(sum(conj(coh[1:(end-1), :, :]) .* coh[2:end, :, :]; dims = 1))
 end
 
 """
@@ -198,7 +198,7 @@ function cs2cs_(
     segave::Bool,
     subave::Bool,
     method::String,
-    )
+)
     if segave
         if method == "bootstrap"
             randboot = rand(1:nep, nep)
@@ -277,17 +277,17 @@ calculates phase slope index (PSI)
 function psi_est(
     data::AbstractArray,
     seglen::Integer;
-    segshift::Integer=0,
-    eplen::Integer=0,
-    freqlist::AbstractArray{Int}=Int[],
-    method::String="jackknife",
-    subave::Bool=false,
-    segave::Bool=true,
-    nboot::Integer=100,
-    detrend::Bool=false,
-    window::Function=hanning_fun,
-    verbose::Bool=false
-    )
+    segshift::Integer = 0,
+    eplen::Integer = 0,
+    freqlist::AbstractArray{Int} = Int[],
+    method::String = "jackknife",
+    subave::Bool = false,
+    segave::Bool = true,
+    nboot::Integer = 100,
+    detrend::Bool = false,
+    window::Function = hanning_fun,
+    verbose::Bool = false,
+)
 
     # check and reshape data if necessary and possible
     data = prep_data_psi(data, seglen, verbose)
@@ -328,7 +328,7 @@ function psi_est(
     eposeg .*= window(seglen)
 
     # Fast Fourier Transforming the data
-    eposeg = view(fft(eposeg, 1), 2:(maxfreq + 1), :, :, :)
+    eposeg = view(fft(eposeg, 1), 2:(maxfreq+1), :, :, :)
 
     # preallocation of Phase-Slope-index arrays
     psi = Array{Float64}(undef, nchan, nchan, nfbands)
@@ -347,12 +347,12 @@ function psi_est(
 
         if method == "jackknife"
             cs_jack = cs2cs_(eposeg, cs_full, fband, nep, segave, subave, "jackknife")
-            for e in 1:nep
+            for e = 1:nep
                 cs_jack_se = (nep * cs_psi - view(cs_jack, :, e, :, :)) / (nep + 1)
                 psi_est[:, :, f, e] = cs2ps(cs_jack_se)
             end
         elseif method == "bootstrap"
-            for e in 1:nboot
+            for e = 1:nboot
                 cs_boot = cs2cs_(eposeg, cs_full, fband, nep, segave, subave, "bootstrap")
                 psi_est[:, :, f, e] = cs2ps(cs_boot)
             end
@@ -361,9 +361,9 @@ function psi_est(
 
     # calculating the standard error
     if method == "jackknife"
-        psi_std = sqrt(nep) * squeeze(std(psi_est; corrected=true, dims=4))
+        psi_std = sqrt(nep) * squeeze(std(psi_est; corrected = true, dims = 4))
     elseif method == "bootstrap"
-        psi_std = squeeze(std(psi_est; corrected=true, dims=4))
+        psi_std = squeeze(std(psi_est; corrected = true, dims = 4))
     else
         psi_std = fill(NaN, (nchan, nchan, nfbands))
     end
