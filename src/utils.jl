@@ -8,9 +8,9 @@ int(x) = trunc(Int, x)
 """
 function dropmean(X, d)
     if ndims(X) == 1
-        mean(X; dims=d)
+        mean(X; dims = d)
     else
-        dropdims(mean(X; dims=d); dims=d)
+        dropdims(mean(X; dims = d); dims = d)
     end
 end
 
@@ -45,7 +45,7 @@ function detrend!(data::AbstractArray, n::Integer)
 
     data = reshape(data, (nsamp, :))  # reshaping data
     if n == 0
-        data .-= mean(data; dims=1)
+        data .-= mean(data; dims = 1)
     elseif n == 1
         data .-= A * (A \ data)
     end
@@ -58,10 +58,10 @@ end
 Hanning window similar to MATLAB `hanning` implementation
 """
 function hanning_fun(N::Integer)
-    x = [range(0.0, 1.0; length=N + 2);]
+    x = [range(0.0, 1.0; length = N + 2);]
     window = 0.5 .* (1 .- cospi.(2 .* x))
     window = (window + window[end:-1:1]) ./ 2  # forcing symmetry
-    return window[2:(end - 1)]  # excluding the zero values
+    return window[2:(end-1)]  # excluding the zero values
 end
 
 """
@@ -87,10 +87,10 @@ P_s \\propto \\frac{1}{f^c} .
 """
 function pink_noise(n::Integer, c::Float64)
     nf = int(n / 2)  # Nyquist frequency
-    x = reshape(range(start=0.0, stop=1.0, length=n), 1, :)
-    f = reshape(range(start=1, stop=nf), :, 1)
+    x = reshape(range(start = 0.0, stop = 1.0, length = n), 1, :)
+    f = reshape(range(start = 1, stop = nf), :, 1)
     phi = rand(nf)
     y = f * x .+ phi
     z = sin.(2 * pi * y) ./ (f .^ c)
-    return sum(z; dims=1)[1, :]
+    return sum(z; dims = 1)[1, :]
 end
